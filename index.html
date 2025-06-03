@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Two Men's Draft</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #111;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    body.light {
+      background: #f0f0f0;
+      color: #111;
+    }
+
+    h1 {
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+
+    #score-board {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0,0,0,0.7);
+      padding: 15px;
+      border-radius: 10px;
+      border: 2px solid #444;
+      min-width: 200px;
+    }
+
+    body.light #score-board {
+      background: rgba(255,255,255,0.9);
+      border-color: #ccc;
+      color: #111;
+    }
+
+    .score-item {
+      margin: 5px 0;
+      font-weight: bold;
+    }
+
+    #connection-status {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.7);
+      padding: 10px;
+      border-radius: 8px;
+      border: 2px solid #444;
+      font-size: 14px;
+    }
+
+    body.light #connection-status {
+      background: rgba(255,255,255,0.9);
+      border-color: #ccc;
+      color: #111;
+    }
+
+    .status-online { color: #4CAF50; }
+    .status-offline { color: #f44336; }
+    .status-waiting { color: #ff9800; }
+
+    #board-wrapper {
+      position: relative;
+      width: 80vw;
+      height: 80vw;
+      max-width: 600px;
+      max-height: 600px;
+      background-size: cover;
+      background-position: center;
+      border-radius: 15px;
+      overflow: hidden;
+      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><defs><linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:%23667eea;stop-opacity:1" /><stop offset="100%" style="stop-color:%23764ba2;stop-opacity:1" /></linearGradient></defs><rect width="400" height="400" fill="url(%23bg1)"/></svg>');
+    }
+
+    #background-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.4);
+      z-index: 0;
+      display: block;
+    }
+
+    body.light #background-overlay {
+      background: rgba(255,255,255,0.4);
+    }
+
+    @media (max-width: 768px) {
+      #board-wrapper {
+        width: 90vw;
+        height: 90vw;
+      }
+    }
+
+    #board-lines {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #game {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+    }
+
+    .box {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      cursor: pointer;
+      transition: all 0.2s;
+      touch-action: manipulation;
+      transform: translate(-50%, -50%);
+    }
+
+    @media (max-width: 768px) {
+      .box {
+        width: 45px;
+        height: 45px;
+      }
+    }
+
+    .box::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #666, #333);
+      border: 2px solid #888;
+      z-index: 1;
+    }
+
+    body.light .box::before {
+      background: radial-gradient(circle at 30% 30%, #ccc, #999);
+      border-color: #666;
+    }
+
+    .box:hover::before {
+      transform: translate(-50%, -50%) scale(1.1);
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    }
+
+    body.light .box:hover::before {
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .P1, .P2 {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      box-shadow: inset -4px -4px 10px rgba(255,255,255,0.2), inset 4px 4px 10px rgba(0,0,0,0.5);
+      touch-action: manipulation;
+      z-index: 2;
+      transition: all 0.3s ease;
+    }
+
+    @media (max-width: 768px) {
+      .P1, .P2 {
+        width: 35px;
+        height: 35px;
+      }
+    }
+
+    .P1 {
+      background: radial-gradient(circle at 30% 30%, #ff4444, #cc0000);
+    }
+
+    .P2 {
+      background: radial-gradient(circle at 30% 30%, #4444ff, #0000cc);
+    }
+
+    .win {
+      animation: flash 0.5s ease-in-out infinite alternate;
+    }
+
+    .selected::before {
+      box-shadow: 0 0 15px yellow, 0 0 25px yellow !important;
+      transform: translate(-50%, -50%) scale(1.3) !important;
+    }
+
+    @keyframes flash {
+      from { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 10px yellow; }
+      to { transform: translate(-50%, -50%) scale(1.2); box-shadow: 0 0 20px white; }
+    }
+
+    #controls {
+      display: flex;
+      gap: 12px;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      background: #444;
+      color: #eee;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #666;
+      transform: translateY(-2px);
+    }
+
+    button:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #win-message {
+      margin-top: 1rem;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: yellow;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Popup Styles */
+    .popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .popup {
+      background: #222;
+      color: #eee;
+      padding: 30px;
+      border-radius: 15px;
+      border: 2px solid #555;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    body.light .popup {
+      background: #fff;
+      color: #111;
+      border-color: #ccc;
+    }
+
+    .popup-close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+      padding: 0;
+    }
+
+    .popup-close:hover {
+      color: #fff;
+      transform: none;
+    }
+
+    body.light .popup-close:hover {
+      color: #111;
+    }
+
+    .settings-grid {
+      display: grid;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .setting-group {
+      background: rgba(255,255,255,0.1);
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    body.light .setting-group {
+      background: rgba(0,0,0,0.05);
+      border-color: rgba(0,0,0,0.1);
+    }
+
+    .setting-group h3 {
+      margin: 0 0 10px 0;
+      color: #ffd700;
+    }
+
+    body.light .setting-group h3 {
+      color: #b8860b;
+    }
+
+    .color-picker-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .color-picker {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .player-name-input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #555;
+      border-radius: 5px;
+      background: #333;
+      color: #eee;
+      margin: 5px 0;
+    }
+
+    body.light .player-name-input {
+      background: #fff;
+      color: #111;
+      border-color: #ccc;
+    }
+
+    .help-content {
+      line-height: 1.6;
+    }
+
+    .help-content h3 {
+      color: #ffd700;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
+    body.light .help-content h3 {
+      color: #b8860b;
+    }
+
+    .help-content ol, .help-content ul {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+
+    .volume-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .volume-slider {
+      flex: 1;
+      height: 5px;
+      background: #555;
+      border-radius: 5px;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #ffd700;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .background-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .bg-option {
+      width: 80px;
+      height: 60px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      background-size: cover;
+      background-position: center;
+      transition: border-color 0.2s;
+    }
+
+    .bg-option:hover, .bg-option.selected {
+      border-color: #ffd700;
+    }
+
+    .share-link {
+      background: #333;
+      color: #eee;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #555;
+      word-break: break-all;
+      margin: 10px 0;
+      font-family: monospace;
+    }
+
+    body.light .share-link {
+      background: #f5f5f5;
+      color: #111;
+      border-color: #ccc;
+    }
+
+    body.light button {
+      background: #ccc;
+      color: #111;
+    }
+
+    body.light button:hover {
+      background: #aaa;
+    }
+
+    body.light button:disabled {
+      background: #ddd;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div id="score-board">
+    <div class="score-item">🏆 SCOREBOARD</div>
+    <div class="score-item" id="player1-score">Player 1: 0</div>
+    <div class="score-item" id="player2-score">Player 2: 0</div>
+  </div>
+
+  <div id="connection-status">
+    <div id="status-text" class="status-offline">🔴 Offline</div>
+    <div id="room-info" style="display: none;"></div>
+  </div>
+
+  <h1>Two Men's Draft</h1>
+  <div id="turn-indicator">Player 1's Turn</div>
+  
+  <div id="board-wrapper">
+    <div id="background-overlay"></div>
+    <canvas id="board-lines"></canvas>
+    <div id="game"></div>
+  </div>
+  
+  <div id="controls">
+    <button id="undo-button">↶ Undo</button>
+    <button id="redo-button">↷ Redo</button>
+    <button id="reset-button">🔄 Reset Game</button>
+    <button id="new-round-button">🎯 New Round</button>
+    <button id="settings-button">⚙️ Settings</button>
+  </div>
+  
+  <div id="win-message"></div>
+
+  <!-- Settings Popup -->
+  <div id="settings-popup" class="popup-overlay">
+    <div class="popup">
+      <button class="popup-close" onclick="closeSettings()">&times;</button>
+      <h2>⚙️ Game Settings</h2>
+      
+      <div class="settings-grid">
+        <div class="setting-group">
+          <h3>👥 Player Names</h3>
+          <input type="text" id="player1-name" class="player-name-input" placeholder="Player 1 Name" value="Player 1">
+          <input type="text" id="player2-name" class="player-name-input" placeholder="Player 2 Name" value="Player 2">
+          <button onclick="updatePlayerNames()">Update Names</button>
+        </div>
+
+        <div class="setting-group">
+          <h3>🎨 Piece Colors</h3>
+          <div class="color-picker-group">
+            <label>Player 1:</label>
+            <input type="color" id="player1-color" class="color-picker" value="#ff4444">
+          </div>
+          <div class="color-picker-group">
+            <label>Player 2:</label>
+            <input type="color" id="player2-color" class="color-picker" value="#4444ff">
+          </div>
+          <button onclick="updatePieceColors()">Apply Colors</button>
+        </div>
+
+        <div class="setting-group">
+          <h3>🎵 Audio Settings</h3>
+          <div class="volume-control">
+            <label>Music Volume:</label>
+            <input type="range" id="music-volume" class="volume-slider" min="0" max="100" value="30">
+            <span id="volume-display">30%</span>
+          </div>
+          <button id="toggle-music">🔇 Stop Music</button>
+          <div style="margin-top: 10px;">
+            <label>Custom Music:</label>
+            <input type="file" id="custom-music" accept="audio/*">
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <h3>🎮 Game Mode</h3>
+          <button id="toggle-ai">🤖 Bot Mode</button>
+          <button id="toggle-friend">👥 Friend</button>
+          <button id="toggle-online">🌐 Online Friend</button>
+          <button id="toggle-theme">🌓 Toggle Theme</button>
+        </div>
+
+        <div class="setting-group" id="online-settings" style="display: none;">
+          <h3>🌐 Online Game</h3>
+          <button onclick="createRoom()">Create Room</button>
+          <button onclick="showJoinRoom()">Join Room</button>
+          <div id="share-section" style="display: none;">
+            <p>Share this link with your friend:</p>
+            <div id="share-link" class="share-link"></div>
+            <button onclick="copyShareLink()">📋 Copy Link</button>
+          </div>
+          <div id="join-section" style="display: none;">
+            <input type="text" id="room-code" class="player-name-input" placeholder="Enter room code">
+            <button onclick="joinRoom()">Join Room</button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <h3>🖼️ Background</h3>
+          <div class="background-selector">
+            <div class="bg-option selected" data-bg="1" style="background-image: linear-gradient(45deg, #667eea, #764ba2);"></div>
+            <div class="bg-option" data-bg="2" style="background-image: linear-gradient(45deg, #f093fb, #f5576c);"></div>
+            <div class="bg-option" data-bg="3" style="background-image: linear-gradient(45deg, #4facfe, #00f2fe);"></div>
+            <div class="bg-option" data-bg="4" style="background-image: linear-gradient(45deg, #43e97b, #38f9d7);"></div>
+            <div class="bg-option" data-bg="5" style="background-image: linear-gradient(45deg, #fa709a, #fee140);"></div>
+          </div>
+          <input type="file" id="bg-upload" accept="image/*">
+          <button onclick="clearBackground()">Clear Background</button>
+        </div>
+
+        <div class="setting-group">
+          <h3>📊 Score Management</h3>
+          <button onclick="resetScores()">Reset All Scores</button>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; text-align: center;">
+        <button onclick="showHelp()" style="background: #ffd700; color: #111;">❓ How to Play</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Popup -->
+  <div id="help-popup" class="popup-overlay">
+    <div class="popup">
+      <button class="popup-close" onclick="closeHelp()">&times;</button>
+      <h2>❓ How to Play Two Men's Draft</h2>
+      
+      <div class="help-content">
+        <h3>🎯 Objective</h3>
+        <p>Be the first player to align three of your pieces in a row (horizontally, vertically, or diagonally).</p>
+
+        <h3>🎮 Game Setup</h3>
+        <ul>
+          <li>Each player starts with 3 pieces on the board</li>
+          <li>Player 1 (red pieces) starts at the top row</li>
+          <li>Player 2 (blue pieces) starts at the bottom row</li>
+        </ul>
+
+        <h3>📋 How to Play</h3>
+        <ol>
+          <li><strong>Select a Piece:</strong> Click on one of your pieces to select it (it will glow yellow)</li>
+          <li><strong>Move the Piece:</strong> Click on an adjacent empty intersection to move your piece there</li>
+          <li><strong>Valid Moves:</strong> Pieces can only move to adjacent intersections connected by lines</li>
+          <li><strong>Take Turns:</strong> Players alternate turns moving one piece at a time</li>
+        </ol>
+
+        <h3>🏆 Winning</h3>
+        <p>Form a line of three pieces in any direction:</p>
+        <ul>
+          <li>Horizontal line (left to right)</li>
+          <li>Vertical line (top to bottom)</li>
+          <li>Diagonal line (corner to corner through center)</li>
+        </ul>
+
+        <h3>🎲 Game Modes</h3>
+        <ul>
+          <li><strong>Friend:</strong> Two players on the same device</li>
+          <li><strong>Bot Mode:</strong> Play against the computer AI</li>
+          <li><strong>Online Friend:</strong> Play with someone on a different device</li>
+        </ul>
+
+        <h3>⚙️ Controls</h3>
+        <ul>
+          <li><strong>Undo:</strong> Take back the last move</li>
+          <li><strong>Redo:</strong> Restore an undone move</li>
+          <li><strong>Reset Game:</strong> Start a completely new game</li>
+          <li><strong>New Round:</strong> Start a fresh round (keeps score)</li>
+          <li><strong>Settings:</strong> Customize players, colors, and audio</li>
+        </ul>
+
+        <h3>🌐 Online Play</h3>
+        <ul>
+          <li>Create a room and share the link with your friend</li>
+          <li>Or join a room using a room code</li>
+          <li>Both players will see moves in real-time</li>
+          <li>Connection status is shown in the top-right corner</li>
+        </ul>
+
+        <h3>💡 Strategy Tips</h3>
+        <ul>
+          <li>Control the center position - it connects to all other positions</li>
+          <li>Block your opponent's potential winning moves</li>
+          <li>Try to create multiple winning threats at once</li>
+          <li>Watch for diagonal opportunities through the center</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio elements -->
+  <audio id="place-sound" preload="auto">
+    <source src="place.mp3" type="audio/mpeg">
+  </audio>
+
+  <audio id="bg-music" preload="auto" loop>
+    <source src="bgmusic.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="win-music" preload="auto" loop>
+    <source src="win.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    // Game state variables
+    const game = document.getElementById("game");
+    const boardLines = document.getElementById("board-lines");
+    const boardWrapper = document.getElementById("board-wrapper");
+    const backgroundOverlay = document.getElementById("background-overlay");
+    const turnIndicator = document.getElementById("turn-indicator");
+    const winMessage = document.getElementById("win-message");
+    const undoButton = document.getElementById("undo-button");
+    const redoButton = document.getElementById("redo-button");
+    const resetButton = document.getElementById("reset-button");
+    const newRoundButton = document.getElementById("new-round-button");
+    const settingsButton = document.getElementById("settings-button");
+    const bgInput = document.getElementById("bg-upload");
+    const placeSound = document.getElementById("place-sound");
+    const bgMusic = document.getElementById("bg-music");
+    const winMusic = document.getElementById("win-music");
+
+    let board = ["P1", "P1", "P1", null, null, null, "P2", "P2", "P2"];
+    let currentPlayer = "P1";
+    let moveHistory = [["P1", "P1", "P1", null, null, null, "P2", "P2", "P2"]];
+    let redoHistory = [];
+    let gameMode = "friend"; // friend, bot, online
+    let selectedIndex = -1;
+    let player1Name = "Player 1";
+    let player2Name = "Player 2";
+    let player1Score = 0;
+    let player2Score = 0;
+    let musicPlaying = true;
+    let roomId = null;
+    let isHost = false;
+    let ws = null;
+
+    // Game logic
+    const adjacency = {
+      0: [1, 3, 4], 1: [0, 2, 4], 2: [1, 4, 5],
+      3: [0, 4, 6], 4: [0, 1, 2, 3, 5, 6, 7, 8], 5: [2, 4, 8],
+      6: [3, 4, 7], 7: [4, 6, 8], 8: [4, 5, 7]
+    };
+
+    const winningCombos = [
+      [3, 4, 5], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]
+    ];
+
+    const backgroundImages = {
+      1: 'linear-gradient(45deg, #667eea, #764ba2)',
+      2: 'linear-gradient(45deg, #f093fb, #f5576c)',
+      3: 'linear-gradient(45deg, #4facfe, #00f2fe)',
+      4: 'linear-gradient(45deg, #43e97b, #38f9d7)',
+      5: 'linear-gradient(45deg, #fa709a, #fee140)'
+    };
+
+    // Audio functions
+    function playPlaceSound() {
+      try {
+        placeSound.currentTime = 0;
+        placeSound.play().catch(e => console.log("Could not play sound:", e));
+      } catch (e) {
+        console.log("Sound not available:", e);
+      }
+    }
+
+    function toggleMusic() {
+      if (musicPlaying) {
+        bgMusic.pause();
+        musicPlaying = false;
+        document.getElementById("toggle-music").textContent = "🎵 Play Music";
+      } else {
+        bgMusic.play().catch(e => console.log("Could not play music:", e));
+        musicPlaying = true;
+        document.getElementById("toggle-music").textContent = "🔇 Stop Music";
+      }
+    }
+
+    // Online multiplayer functions
+    function createRoom() {
+      roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+      isHost = true;
+      connectToRoom();
+      document.getElementById("share-link").textContent = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+      document.getElementById("share-section").style.display = "block";
+      document.getElementById("join-section").style.display = "none";
+    }
+
+    function showJoinRoom() {
+      document.getElementById("join-section").style.display = "block";
+      document.getElementById("share-section").style.display = "none";
+    }
+
+    function joinRoom() {
+      const code = document.getElementById("room-code").value.toUpperCase();
+      if (code) {
+        roomId = code;
+        isHost = false;
+        connectToRoom();
+      }
+    }
+
+    function connectToRoom() {
+      // Simulate WebSocket connection for demo
+      updateConnectionStatus("waiting", `Room: ${roomId}`);
+      
+      // In a real implementation, you would connect to a WebSocket server
+      setTimeout(() => {
+        updateConnectionStatus("online", `Room: ${roomId}`);
+        gameMode = "online";
+        document.getElementById("online-settings").style.display = "block";
+      }, 1000);
+    }
+
+    function updateConnectionStatus(status, info = "") {
+      const statusText = document.getElementById("status-text");
+      const roomInfo = document.getElementById("room-info");
+      
+      switch(status) {
+        case "online":
+          statusText.textContent = "🟢 Online";
+          statusText.className = "status-online";
+          break;
+        case "waiting":
+          statusText.textContent = "🟡 Waiting...";
+          statusText.className = "status-waiting";
+          break;
+        default:
+          statusText.textContent = "🔴 Offline";
+          statusText.className = "status-offline";
+      }
+      
+      if (info) {
+        roomInfo.textContent = info;
+        roomInfo.style.display = "block";
+      } else {
+        roomInfo.style.display = "none";
+      }
+    }
+
+    function copyShareLink() {
+      const link = document.getElementById("share-link").textContent;
+      navigator.clipboard.writeText(link).then(() => {
+        alert("Link copied to clipboard!");
+      });
+    }
+
+    function sendMove(moveData) {
+      if (gameMode === "online" && ws) {
+        ws.send(JSON.stringify({
+          type: "move",
+          data: moveData
+        }));
+      }
+    }
+
+    // Score functions
+    function updateScoreDisplay() {
+      document.getElementById("player1-score").textContent = `${player1Name}: ${player1Score}`;
+      document.getElementById("player2-score").textContent = `${player2Name}: ${player2Score}`;
+    }
+
+    function incrementScore(player) {
+      if (player === "P1") {
+        player1Score++;
+      } else {
+        player2Score++;
+      }
+      updateScoreDisplay();
+    }
+
+    function resetScores() {
+      player1Score = 0;
+      player2Score = 0;
+      updateScoreDisplay();
+    }
+
+    // Settings functions
+    function openSettings() {
+      document.getElementById("settings-popup").style.display = "flex";
+    }
+
+    function closeSettings() {
+      document.getElementById("settings-popup").style.display = "none";
+    }
+
+    function showHelp() {
+      document.getElementById("help-popup").style.display = "flex";
+    }
+
+    function closeHelp() {
+      document.getElementById("help-popup").style.display = "none";
+    }
+
+    function updatePlayerNames() {
+      player1Name = document.getElementById("player1-name").value || "Player 1";
+      player2Name = document.getElementById("player2-name").value || "Player 2";
+      updateScoreDisplay();
+      updateTurn();
+    }
+
+    function updatePieceColors() {
+      const p1Color = document.getElementById("player1-color").value;
+      const p2Color = document.getElementById("player2-color").value;
+      
+      const style = document.createElement('style');
+      style.textContent = `
+        .P1 { background: radial-gradient(circle at 30% 30%, ${p1Color}, ${adjustBrightness(p1Color, -30)}) !important; }
+        .P2 { background: radial-gradient(circle at 30% 30%, ${p2Color}, ${adjustBrightness(p2Color, -30)}) !important; }
+      `;
+      document.head.appendChild(style);
+    }
+
+    function adjustBrightness(hex, percent) {
+      const num = parseInt(hex.replace("#", ""), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = (num >> 16) + amt;
+      const G = (num >> 8 & 0x00FF) + amt;
+      const B = (num & 0x0000FF) + amt;
+      return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+        (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+    }
+
+    function setBackground(bgNum) {
+      document.querySelectorAll('.bg-option').forEach(el => el.classList.remove('selected'));
+      document.querySelector(`[data-bg="${bgNum}"]`).classList.add('selected');
+      boardWrapper.style.backgroundImage = backgroundImages[bgNum];
+      backgroundOverlay.style.display = "block";
+    }
+
+    function clearBackground() {
+      boardWrapper.style.backgroundImage = backgroundImages[1];
+      backgroundOverlay.style.display = "block";
+    }
+
+    // Game functions
+    function createBoard() {
+      game.innerHTML = "";
+      
+      const positions = [
+        { left: '10%', top: '10%' }, { left: '50%', top: '10%' }, { left: '90%', top: '10%' },
+        { left: '10%', top: '50%' }, { left: '50%', top: '50%' }, { left: '90%', top: '50%' },
+        { left: '10%', top: '90%' }, { left: '50%', top: '90%' }, { left: '90%', top: '90%' }
+      ];
+
+      board.forEach((val, idx) => {
+        const div = document.createElement("div");
+        div.className = "box";
+        div.dataset.index = idx;
+        div.style.left = positions[idx].left;
+        div.style.top = positions[idx].top;
+        
+        if (val) {
+          const piece = document.createElement("div");
+          piece.className = val;
+          div.appendChild(piece);
+        }
+        
+        div.addEventListener("click", () => handleMove(idx));
+        div.addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          handleMove(idx);
+        });
+        game.appendChild(div);
+      });
+      
+      drawLines();
+      updateTurn();
+    }
+
+    function drawLines() {
+      const ctx = boardLines.getContext("2d");
+      boardLines.width = boardWrapper.offsetWidth;
+      boardLines.height = boardWrapper.offsetHeight;
+      ctx.clearRect(0, 0, boardLines.width, boardLines.height);
+      
+      ctx.strokeStyle = document.body.classList.contains("light") ? "#333" : "white";
+      ctx.lineWidth = 3;
+
+      const w = boardLines.width;
+      const h = boardLines.height;
+      const margin = 0.1;
+      
+      const px = c => w * (margin + c * (1 - 2 * margin) / 2);
+      const py = r => h * (margin + r * (1 - 2 * margin) / 2);
+
+      const pos = [
+        [0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2], [2, 2]
+      ];
+
+      const lines = [
+        [0, 1], [1, 2], [3, 4], [4, 5], [6, 7], [7, 8],
+        [0, 3], [3, 6], [1, 4], [4, 7], [2, 5], [5, 8],
+        [0, 4], [4, 8], [2, 4], [4, 6]
+      ];
+
+      for (const [a, b] of lines) {
+        ctx.beginPath();
+        ctx.moveTo(px(pos[a][0]), py(pos[a][1]));
+        ctx.lineTo(px(pos[b][0]), py(pos[b][1]));
+        ctx.stroke();
+      }
+    }
+
+    function clearSelection() {
+      for (let i = 0; i < game.children.length; i++) {
+        game.children[i].classList.remove("selected");
+      }
+      selectedIndex = -1;
+    }
+
+    function handleMove(index) {
+      if (winMessage.textContent) return;
+      if (gameMode === "online" && !isMyTurn()) return;
+      
+      const cell = board[index];
+      
+      if (selectedIndex >= 0) {
+        if (!cell && adjacency[selectedIndex].includes(index)) {
+          makeMove(selectedIndex, index);
+        } 
+        else if (cell === currentPlayer) {
+          clearSelection();
+          game.children[index].classList.add("selected");
+          selectedIndex = index;
+        }
+        else {
+          clearSelection();
+        }
+      } 
+      else if (cell === currentPlayer) {
+        const hasValidMoves = adjacency[index].some(adj => board[adj] === null);
+        if (hasValidMoves) {
+          game.children[index].classList.add("selected");
+          selectedIndex = index;
+        }
+      }
+    }
+
+    function makeMove(from, to) {
+      board[to] = currentPlayer;
+      board[from] = null;
+      moveHistory.push([...board]);
+      redoHistory = []; // Clear redo history when new move is made
+      updateBoard();
+      playPlaceSound();
+      
+      if (gameMode === "online") {
+        sendMove({ from, to, board: [...board], player: currentPlayer });
+      }
+      
+      if (checkWin(currentPlayer)) {
+        highlightWinningCombo(currentPlayer);
+        const winnerName = currentPlayer === "P1" ? player1Name : player2Name;
+        winMessage.textContent = `${winnerName} Wins!`;
+        incrementScore(currentPlayer);
+        clearSelection();
+        winMusic.loop = false;
+        winMusic.currentTime = 0;
+        winMusic.play().catch(e => console.log("Could not play win music:", e));
+        return;
+      }
+      
+      clearSelection();
+      switchTurn();
+      
+      if (gameMode === "bot" && currentPlayer === "P2") {
+        setTimeout(aiMove, 400);
+      }
+    }
+
+    function isMyTurn() {
+      if (gameMode !== "online") return true;
+      return (isHost && currentPlayer === "P1") || (!isHost && currentPlayer === "P2");
+    }
+
+    function updateBoard() {
+      board.forEach((val, idx) => {
+        const cell = game.children[idx];
+        const existingPiece = cell.querySelector('.P1, .P2');
+        if (existingPiece) {
+          existingPiece.remove();
+        }
+        
+        if (val) {
+          const piece = document.createElement("div");
+          piece.className = val;
+          cell.appendChild(piece);
+        }
+      });
+      
+      // Update button states
+      undoButton.disabled = moveHistory.length <= 1;
+      redoButton.disabled = redoHistory.length === 0;
+    }
+
+    function updateTurn() {
+      const currentName = currentPlayer === "P1" ? player1Name : player2Name;
+      turnIndicator.textContent = `${currentName}'s Turn`;
+    }
+
+    function switchTurn() {
+      currentPlayer = currentPlayer === "P1" ? "P2" : "P1";
+      updateTurn();
+    }
+
+    function checkWin(player) {
+      return winningCombos.some(pattern => pattern.every(i => board[i] === player));
+    }
+
+    function getWinningCombo(player) {
+      return winningCombos.find(pattern => pattern.every(i => board[i] === player));
+    }
+
+    function highlightWinningCombo(player) {
+      const winningCombo = getWinningCombo(player);
+      if (winningCombo) {
+        winningCombo.forEach(index => {
+          const piece = game.children[index].querySelector('.P1, .P2');
+          if (piece) {
+            piece.classList.add("win");
+          }
+        });
+      }
+    }
+
+    function aiMove() {
+      if (winMessage.textContent) return;
+      
+      // AI logic - check for winning moves first
+      for (let from = 0; from < board.length; from++) {
+        if (board[from] === "P2") {
+          for (let to of adjacency[from]) {
+            if (!board[to]) {
+              const originalFrom = board[from];
+              const originalTo = board[to];
+              
+              board[to] = "P2";
+              board[from] = null;
+              
+              if (checkWin("P2")) {
+                moveHistory.push([...board]);
+                redoHistory = [];
+                updateBoard();
+                playPlaceSound();
+                highlightWinningCombo("P2");
+                winMessage.textContent = `${player2Name} Wins!`;
+                incrementScore("P2");
+                return;
+              }
+              
+              board[from] = originalFrom;
+              board[to] = originalTo;
+            }
+          }
+        }
+      }
+      
+      // Make a random valid move
+      for (let from = 0; from < board.length; from++) {
+        if (board[from] === "P2") {
+          for (let to of adjacency[from]) {
+            if (!board[to]) {
+              board[to] = "P2";
+              board[from] = null;
+              moveHistory.push([...board]);
+              redoHistory = [];
+              updateBoard();
+              playPlaceSound();
+              
+              if (checkWin("P2")) {
+                highlightWinningCombo("P2");
+                winMessage.textContent = `${player2Name} Wins!`;
+                incrementScore("P2");
+              } else {
+                switchTurn();
+              }
+              return;
+            }
+          }
+        }
+      }
+      
+      winMessage.textContent = `${player1Name} Wins! (${player2Name} has no valid moves)`;
+      incrementScore("P1");
+    }
+
+    function undoMove() {
+      if (moveHistory.length > 1) {
+        redoHistory.push([...board]);
+        moveHistory.pop();
+        board = [...moveHistory[moveHistory.length - 1]];
+        updateBoard();
+        winMessage.textContent = "";
+        clearSelection();
+        
+        if (gameMode === "bot" && currentPlayer === "P2") {
+          if (moveHistory.length > 1) {
+            redoHistory.push([...board]);
+            moveHistory.pop();
+            board = [...moveHistory[moveHistory.length - 1]];
+            updateBoard();
+          }
+          currentPlayer = "P1";
+        } else {
+          currentPlayer = currentPlayer === "P1" ? "P2" : "P1";
+        }
+        
+        updateTurn();
+        removeWinHighlights();
+      }
+    }
+
+    function redoMove() {
+      if (redoHistory.length > 0) {
+        board = [...redoHistory.pop()];
+        moveHistory.push([...board]);
+        updateBoard();
+        winMessage.textContent = "";
+        clearSelection();
+        currentPlayer = currentPlayer === "P1" ? "P2" : "P1";
+        updateTurn();
+        removeWinHighlights();
+      }
+    }
+
+    function removeWinHighlights() {
+      for (let i = 0; i < game.children.length; i++) {
+        const piece = game.children[i].querySelector('.P1, .P2');
+        if (piece) {
+          piece.classList.remove("win");
+        }
+      }
+    }
+
+    function resetGame() {
+      board = ["P1", "P1", "P1", null, null, null, "P2", "P2", "P2"];
+      moveHistory = [["P1", "P1", "P1", null, null, null, "P2", "P2", "P2"]];
+      redoHistory = [];
+      winMessage.textContent = "";
+      currentPlayer = "P1";
+      clearSelection();
+      updateBoard();
+      updateTurn();
+      removeWinHighlights();
+      resetScores();
+    }
+
+    function startNewRound() {
+      board = ["P1", "P1", "P1", null, null, null, "P2", "P2", "P2"];
+      moveHistory = [["P1", "P1", "P1", null, null, null, "P2", "P2", "P2"]];
+      redoHistory = [];
+      winMessage.textContent = "";
+      currentPlayer = "P1";
+      clearSelection();
+      updateBoard();
+      updateTurn();
+      removeWinHighlights();
+    }
+
+    // Event listeners
+    undoButton.onclick = undoMove;
+    redoButton.onclick = redoMove;
+    resetButton.onclick = resetGame;
+    newRoundButton.onclick = startNewRound;
+    settingsButton.onclick = openSettings;
+
+    bgInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file && file.type.startsWith("image")) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          boardWrapper.style.backgroundImage = `url(${e.target.result})`;
+          backgroundOverlay.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    document.getElementById("custom-music").onchange = (e) => {
+      const file = e.target.files[0];
+      if (file && file.type.startsWith("audio")) {
+        const url = URL.createObjectURL(file);
+        bgMusic.src = url;
+        bgMusic.load();
+        if (musicPlaying) {
+          bgMusic.play();
+        }
+      }
+    };
+
+    document.getElementById("toggle-theme").onclick = () => {
+      document.body.classList.toggle("light");
+      drawLines();
+    };
+
+    document.getElementById("toggle-ai").onclick = () => {
+      gameMode = "bot";
+      document.getElementById("online-settings").style.display = "none";
+      updateConnectionStatus("offline");
+      alert("Bot mode enabled.");
+      if (currentPlayer === "P2" && !winMessage.textContent) {
+        setTimeout(aiMove, 400);
+      }
+    };
+
+    document.getElementById("toggle-friend").onclick = () => {
+      gameMode = "friend";
+      document.getElementById("online-settings").style.display = "none";
+      updateConnectionStatus("offline");
+      alert("Friend mode enabled.");
+    };
+
+    document.getElementById("toggle-online").onclick = () => {
+      document.getElementById("online-settings").style.display = "block";
+      alert("Online mode selected. Create or join a room below.");
+    };
+
+    document.getElementById("toggle-music").onclick = toggleMusic;
+
+    document.getElementById("music-volume").oninput = (e) => {
+      const volume = e.target.value / 100;
+      bgMusic.volume = volume;
+      document.getElementById("volume-display").textContent = e.target.value + "%";
+    };
+
+    // Background selector
+    document.querySelectorAll('.bg-option').forEach(option => {
+      option.onclick = () => setBackground(option.dataset.bg);
+    });
+
+    window.addEventListener('resize', drawLines);
+
+    // Check for room parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+      document.getElementById("room-code").value = roomParam;
+      setTimeout(() => {
+        openSettings();
+        document.getElementById("toggle-online").click();
+        showJoinRoom();
+      }, 500);
+    }
+
+    // Initialize
+    bgMusic.volume = 0.3;
+    bgMusic.play().catch(e => console.log("Could not auto-play music:", e));
+    createBoard();
+    updateScoreDisplay();
+    setBackground(1);
+  </script>
+</body>
+</html>
